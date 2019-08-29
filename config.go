@@ -2,19 +2,23 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"golang.org/x/crypto/acme"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"golang.org/x/crypto/acme"
 )
 
 const (
-	acmeFile = ".letsencrypt"
-	acmeType = "ACME INFO"
+	acmeFile      = ".letsencrypt"
+	acmeHeaderURI = "uri"
+	acmeDirectory = "https://acme-v01.api.letsencrypt.org/directory"
+	acmeType      = "ACME INFO"
 )
 
 var (
@@ -23,12 +27,12 @@ var (
 
 func newAcmeClient(ctx context.Context) (*acme.Client, error) {
 
-	homedir, err := os.UserHomeDir()
+	fullpath, err := getAcmePath(acmeFile)
 	if err != nil {
 		return nil, err
 	}
 
-	pemBytes, err := ioutil.ReadFile(filepath.Join(homedir, acmeFile))
+	pemBytes, err := ioutil.ReadFile(fullpath)
 	if err != nil {
 		return nil, err
 	}
@@ -46,9 +50,9 @@ func newAcmeClient(ctx context.Context) (*acme.Client, error) {
 
 	client := &acme.Client{
 		Key:          key,
-		DirectoryURL: "https://acme-v01.api.letsencrypt.org/directory",
+		DirectoryURL: acmeDirectory,
 	}
-	regUri := pemData.Headers["uri"]
+	regUri := pemData.Headers[acmeHeaderURI]
 
 	if regUri == "" {
 		return nil, InvalidFormat
@@ -59,4 +63,51 @@ func newAcmeClient(ctx context.Context) (*acme.Client, error) {
 	}
 
 	return client, nil
+}
+
+func newAcmeReg(ctx context.Context, contact []string) (*acme.Client, error) {
+	fullpaht, err := getAcmePath(acmeFile)
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &acme.Client{
+		Key:          key,
+		DirectoryURL: acmeDirectory,
+	}
+
+	account, err := client.Register(ctx, &acme.Account{Contact: contact}, acme.AcceptTOS)
+	if err != nil {
+		return nil, err
+	}
+
+	file, err := os.OpenFile(fullpaht, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	bytes, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+
+	b := &pem.Block{Type: acmeType, Bytes: bytes, Headers: map[string]string{acmeHeaderURI: account.URI}}
+	if err := pem.Encode(file, b); err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+func getAcmePath(base string) (string, error) {
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(homedir, base), nil
 }

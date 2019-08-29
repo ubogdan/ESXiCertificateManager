@@ -45,10 +45,22 @@ func main() {
 
 	init.Usage = init.PrintDefaults
 	flag.Parse()
+
+	ctx := context.Background()
+
 	switch flag.Arg(0) {
 	case init.Name():
 		init.Parse(flag.Args()[1:])
-		log.Printf("Init called %s", email)
+		if email == "" {
+			log.Printf("Required param -email not provided")
+			return
+		}
+		_, err := newAcmeReg(ctx, []string{"mailto:" + email})
+		if err != nil {
+			log.Printf("Register: %s", err)
+			return
+		}
+		log.Printf("Done !")
 		return
 	}
 
@@ -82,8 +94,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to resolve %s: %s", hostname, err)
 	}
-
-	ctx := context.Background()
 
 	// cPanel
 	cp, err := cpanel.NewJsonApi(cphost, cpuser, cppass, false)
