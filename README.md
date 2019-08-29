@@ -14,7 +14,9 @@ go get github.com/ubogdan/ESXiCertificateManager
 
 3. Use it 
 via cmd line params
-`~/go/bin/ESXiCertificateManager -wu=root -wp=test -cd=gost.com -cu=cUser -cp=cPassw esx.fqdn.hostname`
+```
+~/go/bin/ESXiCertificateManager -wu=root -wp=test -cd=gost.com -cu=cUser -cp=cPassw esx.fqdn.hostname
+```
 
 via environment variables
 ```
