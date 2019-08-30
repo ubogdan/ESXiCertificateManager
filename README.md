@@ -1,6 +1,6 @@
 
 # Usage
-Please not this is work in progress and it require .letsencript file in your home dir.  
+Note: this is work in progress with possible overnight breaking changes.  
 
 1. Install for Go by using:
 ```
